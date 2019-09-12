@@ -42,29 +42,22 @@ dataRGB = dataset[atributosRGB].copy()
 X = dataset.values
 Y = dataset.index
 
-# Divisão dos atributos segundo as características de forma (Shape) e cor (RGB)
-XShape = X[0:10]
-XRGB = X[10:19]
-
 # ********************************
 # *** Definição dos parâmetros ***
 # ********************************
 
 # n é o número de exemplos no treinamento
 n = len(dataset)
-# k é o número de classes
-k = len(dataset.groupby(dataset.index))
+# Classes (k é o número de classes diferentes)
+classes = dataset.index.unique().values
+k = len(classes)
 
 # Número de atributos de cada 'view' (espaço de características diferentes)
 nShape = len(atributosShape)
 nRGB = len(atributosRGB)
 
-# Número de classes
-classes = dataset.index.unique().values
-nClasses = len(classes)
-
 # Criando dicionário para as classes (string -> int)
-dicClasses = { '%s'% classes[i]: i for i in range(nClasses) }
+dicClasses = { '%s'% classes[i]: i for i in range(k) }
 
 # ****************************************
 # *** Características da base de dados ***
