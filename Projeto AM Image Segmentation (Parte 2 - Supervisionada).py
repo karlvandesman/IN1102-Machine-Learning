@@ -119,15 +119,18 @@ varRGB = dataRGB.groupby(dataRGB.index).var().var(axis=1)
 covShape = [ np.eye(np.size(dataShape, 1)) * varShape[i] for i in range(k) ]
 covRGB = [ np.eye(np.size(dataRGB, 1)) * varRGB[i] for i in range(k) ]
 
-# A probabilidade a posteriori é calculada segundo uma normal multivariada com parâmetros sigma matriz de covariância (matriz identidade)
+# As densidades de probabilidade são calculadas segundo uma normal multivariada com parâmetros sigma e matriz de covariância
 '''Erro no cálculo das probabilidades'''
-PPostShape = [ multivariate_normal.pdf(dataShape.values, sigmaShape[i], covShape[i]) for i in range(k) ] 
-PPostRGB = [ multivariate_normal.pdf(dataRGB.values, sigmaRGB[i], covRGB[i]) for i in range(k) ] 
+densShape = [ multivariate_normal.pdf(dataShape.values, sigmaShape[i], covShape[i]) for i in range(k) ] 
+densRGB = [ multivariate_normal.pdf(dataRGB.values, sigmaRGB[i], covRGB[i]) for i in range(k) ] 
 
-# A probabilidade a posteriori é calculada segundo uma normal multivariada com parâmetros sigma matriz de covariância (matriz identidade)
+# A probabilidade a posteriori é calculada segundo o teorema de Bayes
 '''Conferir somatório no denominador (resultado do produto de matrizes)'''
-PGaussShape = [ (PPostShape[i] * PClasse[i])/(np.dot(PPostShape, PClasse)) for i in range(k) ] 
-PGaussRGB = [  (PPostRGB * PClasse)/(np.dot(PPostRGB, PClasse)) for i in range(k) ]
+evidenciaShape = np.dot(densShape, PClasse)
+evidenciaRGB = np.dot(densRGB, PClasse)
+
+PGaussShape = [ (densShape[i] * PClasse[i])/evidenciaShape for i in range(k) ] 
+PGaussRGB = [ (densRGB * PClasse)/evidenciaRGB for i in range(k) ]
 
 # Agora obtemos o classificador combinado pela regra de soma. Vai ser atribuida a classe que obtiver maior soma.
 # A decisão de atribuir uma determinada classe a um exemplo é dada por:
