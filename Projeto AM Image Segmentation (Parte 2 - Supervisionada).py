@@ -58,6 +58,7 @@ nRGB = len(atributosRGB)
 
 # Criando dicionário para as classes (string -> int)
 dicClasses = { '%s'% classes[i]: i for i in range(k) }
+dicClassesInv = dict(map(reversed, dicClasses.items()))
 
 # ****************************************
 # *** Características da base de dados ***
@@ -107,6 +108,8 @@ PClasse = dataset.index.value_counts()/len(dataset)
 # Cálculo de parâmetro das normais multivariadas de cada classe
 # *** Vetor de médias ***
 # Média de vetores de cada classe (média por classe e por atributo)
+''' Quando o dataframe é agrupado, ele é apresentado em ordem alfabética.
+    Isso pode gerar erros na hora de atribuir valores para as classes.'''
 sigmaShape = (dataShape.groupby(dataShape.index).mean()).values
 sigmaRGB = (dataRGB.groupby(dataRGB.index).mean()).values
 
@@ -119,17 +122,26 @@ varRGB = dataRGB.groupby(dataRGB.index).var().var(axis=1)
 covShape = [ np.eye(np.size(dataShape, 1)) * varShape[i] for i in range(k) ]
 covRGB = [ np.eye(np.size(dataRGB, 1)) * varRGB[i] for i in range(k) ]
 
+# Cálculo da densidade de probabilidade diretamente
+#dataShapeNorm = [ dataShape.values - sigmaShape[i] for i in range(k) ]
+#covShapeInv = 1/det(covShape)
+#densShape = [ (2*np.pi)**(-nShape/2) * np.sqrt(det(covShapeInv[i])) * np.exp(-0.5 * np.trace(dataShapeNorm[i]) * covShapeInv[i] * (dataShapeNorm[i])) for i in range(k) ] 
+
 # As densidades de probabilidade são calculadas segundo uma normal multivariada com parâmetros sigma e matriz de covariância
 # Cálculo usando a função do SciPy
 '''Conferir o uso da função multivariate_normal para o cálculo da densidade de probabilidade'''
 densShape = [ multivariate_normal.pdf(dataShape.values, sigmaShape[i], covShape[i]) for i in range(k) ] 
 densRGB = [ multivariate_normal.pdf(dataRGB.values, sigmaRGB[i], covRGB[i]) for i in range(k) ] 
 
+# Plot da densidade de probabilidade (está muito estranha!!!)
+#x_axis = range(210)
+#plt.plot(dataShape.values, multivariate_normal.pdf(dataShape.values, sigmaShape[0], covShape[0]))
+#plt.show()
+
 #densShape = [ multivariate_normal.pdf(dataShape[30*i:30*(i+1)].values, sigmaShape[i], covShape[i]) for i in range(k) ] 
 #densRGB = [ multivariate_normal.pdf(dataRGB[30*i:30*(i+1)].values, sigmaRGB[i], covRGB[i]) for i in range(k) ] 
 
 # A probabilidade a posteriori é calculada segundo o teorema de Bayes
-
 evidenciaShape = sum(np.dot(np.matrix.transpose(np.array(densShape)), PClasse))
 evidenciaRGB = sum(np.dot(np.matrix.transpose(np.array(densRGB)), PClasse))
 
@@ -141,8 +153,10 @@ PGaussRGB = [ (densRGB[i] * PClasse[i])/evidenciaRGB for i in range(k) ]
 # P(wj) + Pgauss,shape(wj|xk) + Pgauss,rgb(wj|xk) = max_{(r=1)}^7 [ P(wr) + Pgauss,shape(wr|xk) + Pgauss,rgb(wr|xk) ]
 # Ou seja, a classe que retornar o maior valor para a soma de 3 componentes: as duas probabilidades a posteriori (shape e view) e a estimativa de máxima verossimilhança da classe (Pwi)
 probClf1 = [ PClasse[i] + PGaussShape[i] + PGaussRGB[i] for i in range(k) ]
-probMax = np.amax(probClf1, axis=0)
-'''Falta obter o índice da classe que retornou maior probabilidade'''
+
+# Agora deve-se obter o índice (qual classe) retornou o malhor valor de probabilidade
+probMaxIndex = np.argmax(probClf1, axis=1)
+'''Falta transformar o índice no respectivo "nome" da classe'''
 
 #a) Validação cruzada estratificada repetida: "30 times ten-fold"
 #rkf = RepeatedKFold(n_splits=10, n_repeats=30)
