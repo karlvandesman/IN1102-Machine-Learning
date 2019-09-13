@@ -9,7 +9,7 @@ __email__       = "kvms@cin.ufpe.br"
 # ******************************
 import pandas as pd
 import numpy as np
-
+from numpy.linalg import det
 import matplotlib.pyplot as plt
 
 from sklearn.preprocessing import StandardScaler
@@ -107,8 +107,8 @@ PClasse = dataset.index.value_counts()/len(dataset)
 # Cálculo de parâmetro das normais multivariadas de cada classe
 # *** Vetor de médias ***
 # Média de vetores de cada classe (média por classe e por atributo)
-sigmaShape = dataShape.groupby(dataShape.index).mean()
-sigmaRGB = dataRGB.groupby(dataRGB.index).mean()
+sigmaShape = (dataShape.groupby(dataShape.index).mean()).values
+sigmaRGB = (dataRGB.groupby(dataRGB.index).mean()).values
 
 # *** Matriz de covariância ***
 # Será considerada a aproximação em que as covariância entre diferentes atributos é zero. Ou seja, os valores não-nulos serão somente os da diagonal, e assumindo um mesmo valor para todos os atributos.
@@ -120,26 +120,29 @@ covShape = [ np.eye(np.size(dataShape, 1)) * varShape[i] for i in range(k) ]
 covRGB = [ np.eye(np.size(dataRGB, 1)) * varRGB[i] for i in range(k) ]
 
 # As densidades de probabilidade são calculadas segundo uma normal multivariada com parâmetros sigma e matriz de covariância
-'''Erro no cálculo das probabilidades'''
+# Cálculo usando a função do SciPy
+'''Conferir o uso da função multivariate_normal para o cálculo da densidade de probabilidade'''
 densShape = [ multivariate_normal.pdf(dataShape.values, sigmaShape[i], covShape[i]) for i in range(k) ] 
 densRGB = [ multivariate_normal.pdf(dataRGB.values, sigmaRGB[i], covRGB[i]) for i in range(k) ] 
 
+#densShape = [ multivariate_normal.pdf(dataShape[30*i:30*(i+1)].values, sigmaShape[i], covShape[i]) for i in range(k) ] 
+#densRGB = [ multivariate_normal.pdf(dataRGB[30*i:30*(i+1)].values, sigmaRGB[i], covRGB[i]) for i in range(k) ] 
+
 # A probabilidade a posteriori é calculada segundo o teorema de Bayes
-'''Conferir somatório no denominador (resultado do produto de matrizes)'''
-evidenciaShape = np.dot(densShape, PClasse)
-evidenciaRGB = np.dot(densRGB, PClasse)
+
+evidenciaShape = sum(np.dot(np.matrix.transpose(np.array(densShape)), PClasse))
+evidenciaRGB = sum(np.dot(np.matrix.transpose(np.array(densRGB)), PClasse))
 
 PGaussShape = [ (densShape[i] * PClasse[i])/evidenciaShape for i in range(k) ] 
-PGaussRGB = [ (densRGB * PClasse)/evidenciaRGB for i in range(k) ]
+PGaussRGB = [ (densRGB[i] * PClasse[i])/evidenciaRGB for i in range(k) ]
 
 # Agora obtemos o classificador combinado pela regra de soma. Vai ser atribuida a classe que obtiver maior soma.
 # A decisão de atribuir uma determinada classe a um exemplo é dada por:
 # P(wj) + Pgauss,shape(wj|xk) + Pgauss,rgb(wj|xk) = max_{(r=1)}^7 [ P(wr) + Pgauss,shape(wr|xk) + Pgauss,rgb(wr|xk) ]
-# Ou seja, a classe que retornar o maior valor para a soma de 3 componentes: as duas probabilidades a priori (shape e view) e a estimativa de máxima verossimilhança da classe (Pwi)
+# Ou seja, a classe que retornar o maior valor para a soma de 3 componentes: as duas probabilidades a posteriori (shape e view) e a estimativa de máxima verossimilhança da classe (Pwi)
 probClf1 = [ PClasse[i] + PGaussShape[i] + PGaussRGB[i] for i in range(k) ]
-
-# Para obter o maior valor das colunas de um array, pode-se usar 
-# np.amax(array, axis=0)
+probMax = np.amax(probClf1, axis=0)
+'''Falta obter o índice da classe que retornou maior probabilidade'''
 
 #a) Validação cruzada estratificada repetida: "30 times ten-fold"
 #rkf = RepeatedKFold(n_splits=10, n_repeats=30)
