@@ -4,6 +4,13 @@
 __author__      = "Karl Sousa"
 __email__       = "kvms@cin.ufpe.br"
 
+# ****************************
+# *** Descrição do Projeto ***
+# ****************************
+# Este código refere-se a segunda parte do projeto da disciplina de Aprendizagem de Máquina,
+# do professor Francisco de A. T. de Carvalho. Os algoritmos utilizados são bayesianos,
+# considerando uma abordagem paramétrica (normal multivatiada) e outra não paramétrica (kNN).
+
 # ******************************
 # *** Importando bibliotecas ***
 # ******************************
