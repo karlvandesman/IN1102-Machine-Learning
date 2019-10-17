@@ -16,6 +16,8 @@ __email__       = "kvms@cin.ufpe.br"
 # ******************************
 import pandas as pd
 import numpy as np
+from sklearn.preprocessing import LabelEncoder
+
 from numpy.linalg import det
 import matplotlib.pyplot as plt
 
@@ -55,17 +57,19 @@ Y = dataset.index
 
 # n é o número de exemplos no treinamento
 n = len(dataset)
-# Classes (k é o número de classes diferentes)
-classes = dataset.index.unique().values
+# Classes (k é o número de classes diferentes), e ordena alfabeticamente
+# Aqui conta-
+classes, classes_num = np.unique(np.sort(dataset.index), return_counts=True)
+
+# Objeto para transformar as labels de numérico <-> categórico
+encoding = preprocessing.LabelEncoder()
+encoding.classes_ = classes
+
 k = len(classes)
 
 # Número de atributos de cada 'view' (espaço de características diferentes)
 nShape = len(atributosShape)
 nRGB = len(atributosRGB)
-
-# Criando dicionário para as classes (string -> int)
-dicClasses = { '%s'% classes[i]: i for i in range(k) }
-dicClassesInv = dict(map(reversed, dicClasses.items()))
 
 # ****************************************
 # *** Características da base de dados ***
@@ -110,7 +114,7 @@ print(dataset.describe())
 
 # *** Probabilidade a priori das classes ***
 # (nº de exemplos de cada classse/número total de exemplos)
-PClasse = dataset.index.value_counts()/len(dataset)
+PClasse = classes_num/len(dataset)
 
 # Cálculo de parâmetro das normais multivariadas de cada classe
 # *** Vetor de médias ***
@@ -137,8 +141,8 @@ covRGB = [ np.eye(np.size(dataRGB, 1)) * varRGB[i] for i in range(k) ]
 # As densidades de probabilidade são calculadas segundo uma normal multivariada com parâmetros sigma e matriz de covariância
 # Cálculo usando a função do SciPy
 '''Conferir o uso da função multivariate_normal para o cálculo da densidade de probabilidade'''
-densShape = [ multivariate_normal.pdf(dataShape.values, sigmaShape[i], covShape[i]) for i in range(k) ] 
-densRGB = [ multivariate_normal.pdf(dataRGB.values, sigmaRGB[i], covRGB[i]) for i in range(k) ] 
+densShape = [ multivariate_normal.pdf(dataShape.values, sigmaShape[i], covShape[i]) for i in range(k) ]
+densRGB = [ multivariate_normal.pdf(dataRGB.values, sigmaRGB[i], covRGB[i]) for i in range(k) ]
 
 # Plot da densidade de probabilidade (está muito estranha!!!)
 #x_axis = range(210)
@@ -163,7 +167,9 @@ probClf1 = [ PClasse[i] + PGaussShape[i] + PGaussRGB[i] for i in range(k) ]
 
 # Agora deve-se obter o índice (qual classe) retornou o malhor valor de probabilidade
 probMaxIndex = np.argmax(probClf1, axis=1)
-'''Falta transformar o índice no respectivo "nome" da classe'''
+
+# Codificando o número para o respectivo nome da classe
+y_pred_train = encoding.inverse_transform(probMaxIndex)
 
 #a) Validação cruzada estratificada repetida: "30 times ten-fold"
 #rkf = RepeatedKFold(n_splits=10, n_repeats=30)
