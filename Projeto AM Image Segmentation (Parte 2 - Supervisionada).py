@@ -24,6 +24,7 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.model_selection import RepeatedKFold
+from sklearn.metrics import accuracy_score
 from scipy.stats import wilcoxon
 
 # Algoritmos de aprendizagem
@@ -44,28 +45,30 @@ datasetTeste = pd.read_csv(urlTeste, skiprows=2)
 atributosShape = dataset.columns[0:9]
 atributosRGB = dataset.columns[9:]
 
-dataShape = dataset[atributosShape].copy()  
-dataRGB = dataset[atributosRGB].copy()  
+dataShape = dataset[atributosShape].copy()
+dataRGB = dataset[atributosRGB].copy()
 
 # Divisão dos atributos e classe
 X = dataset.values
-Y = dataset.index
+y = dataset.index
+
+# Classes (k é o número de classes diferentes), e ordena alfabeticamente
+# classes_num -> número de exemplos de cada classe
+classes, classes_num = np.unique(np.sort(dataset.index), return_counts=True)
+
+# Objeto para transformar as labels de numérico <-> categórico
+encoding = LabelEncoder()
+encoding.classes_ = classes
+
+y = encoding.transform(y)
 
 # ********************************
 # *** Definição dos parâmetros ***
 # ********************************
 
-# n é o número de exemplos no treinamento
-n = len(dataset)
-# Classes (k é o número de classes diferentes), e ordena alfabeticamente
-# Aqui conta-
-classes, classes_num = np.unique(np.sort(dataset.index), return_counts=True)
-
-# Objeto para transformar as labels de numérico <-> categórico
-encoding = preprocessing.LabelEncoder()
-encoding.classes_ = classes
-
-k = len(classes)
+L = 2	# Número de views (para o comitê)
+n = len(dataset) # número de exemplos do treinamento
+k = len(classes) # número de classes
 
 # Número de atributos de cada 'view' (espaço de características diferentes)
 nShape = len(atributosShape)
@@ -163,20 +166,39 @@ PGaussRGB = [ (densRGB[i] * PClasse[i])/evidenciaRGB for i in range(k) ]
 # A decisão de atribuir uma determinada classe a um exemplo é dada por:
 # P(wj) + Pgauss,shape(wj|xk) + Pgauss,rgb(wj|xk) = max_{(r=1)}^7 [ P(wr) + Pgauss,shape(wr|xk) + Pgauss,rgb(wr|xk) ]
 # Ou seja, a classe que retornar o maior valor para a soma de 3 componentes: as duas probabilidades a posteriori (shape e view) e a estimativa de máxima verossimilhança da classe (Pwi)
-probClf1 = [ PClasse[i] + PGaussShape[i] + PGaussRGB[i] for i in range(k) ]
+probClf1 = [ (1 - L)*PClasse[i] + PGaussShape[i] + PGaussRGB[i] for i in range(k) ]
 
-# Agora deve-se obter o índice (qual classe) retornou o malhor valor de probabilidade
-probMaxIndex = np.argmax(probClf1, axis=1)
+# Ajustar dimensões da matriz de probabilidade do classificador
+probClf1 = np.vstack(probClf1).T
 
-# Codificando o número para o respectivo nome da classe
-y_pred_train = encoding.inverse_transform(probMaxIndex)
+# Agora deve-se obter o índice (qual classe) retornou o maior valor de probabilidade
+y_pred = np.argmax(probClf1, axis=1)
+print(y_pred)
 
 #a) Validação cruzada estratificada repetida: "30 times ten-fold"
-#rkf = RepeatedKFold(n_splits=10, n_repeats=30)
-#for train_index, test_index in rkf.split(X):
-#    print("TRAIN:", train_index, "TEST:", test_index)
-#    X_train, X_test = X[train_index], X[test_index]
-#    y_train, y_test = y[train_index], y[test_index]
+n_folds = 10
+n_repeticoes = 30
+
+rkf = RepeatedKFold(n_splits=n_folds, n_repeats=n_repeticoes, random_state=10)
+
+# o vetor acuracia vai reunir os 300 valores obtidos pelo RepeatedKFold
+acuracia = []
+
+for indice_treino, indice_validacao in rkf.split(X):
+    X_treino, X_val = X[indice_treino], X[indice_validacao]
+    y_treino, y_val = y[indice_treino], y[indice_validacao]
+    
+    # Adicionar parte de treinamento/predição do classificador
+    ### COMEÇAR CÓDIGO AQUI ###
+    # 
+    #
+    ### TERMINAR CÓDIGO AQUI ###
+    
+    acuracia.append(accuracy_score(y_val, y_pred))
+
+# Agora obtemos as médias de acurácias de 10 em 10 rodadas
+acuraciaKfold = np.asarray([ acuracia[i:i+10].mean() 
+                for i in range(0, n_folds*n_repeticoes, 10) ])
 
 # ---------------------
 # ** Classificador 2 **
