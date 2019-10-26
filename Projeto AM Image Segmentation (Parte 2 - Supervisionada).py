@@ -178,8 +178,9 @@ print(y_pred)
 #a) Validação cruzada estratificada repetida: "30 times ten-fold"
 n_folds = 10
 n_repeticoes = 30
+seed = 10
 
-rkf = RepeatedKFold(n_splits=n_folds, n_repeats=n_repeticoes, random_state=10)
+rkf = RepeatedKFold(n_splits=n_folds, n_repeats=n_repeticoes, random_state=seed)
 
 # o vetor acuracia vai reunir os 300 valores obtidos pelo RepeatedKFold
 acuracia = []
@@ -209,9 +210,43 @@ acuraciaKfold = np.asarray([ acuracia[i:i+10].mean()
 # Normalizar os dados e usar a distância euclidiana
 # Usar conjunto de validação para fixar o k
 
-#scaler = StandardScaler()
-#Xscaled = scaler.fit_transform(X)
-#
+from sklearn.neighbors import NearestNeighbors
+from scipy.spatial import distance
+
+num_K = 10 	# Número máximo de vizinhos K a ser avaliado
+
+standard_scaler = StandardScaler()
+X_escalonado = standard_scaler.fit_transform(X)
+
+for i in num_K:
+	### Treinamento ###
+	# É considerada a distância euclidiana como padrão
+	knnShape = NearestNeighbors(n_neighbors=i)
+	knnRGB = NearestNeighbors(n_neighbors=i)
+	
+	knnShape.fit(X_train[atributosShape])
+	knnRGB.fit(X_train[atributosRGB])
+
+	### Validação ###
+	indiceKvizShape = knnShape.kneighbors(X_val[atributosShape])
+	indiceKvizRGB = knnRGB.kneighbors(Xval[atributosRGB])
+
+	kiShape = [ sum(y_train[indiceKvizShape]==j) for j in range(k) ]
+	kiRGB = [ sum(y_train[indiceKvizRGB]==j) for j in range(k) ]
+
+	# A probabilidade é definida como o número de vizinhos de uma classe
+	# dividido pelo número total de vizinhos
+
+	PkvizShape = [ kiShape[j]/i for j in range(k) ]
+	PkvizRGB = [ kiRGB[j]/i for j in range(k) ]
+
+# Agora obtemos o classificador combinado pela regra de soma.
+# Vai ser atribuida a classe que obtiver maior soma das probabilidades.
+probClf2 = [ Pclasse[i] + PkvizShape[i] + PkvizRGB[i] for i in range(k) ]
+probClf2 = np.vstack(probClf2).T
+
+y_pred = np.argmax(probClf2, axis=1)
+
 #for i in range(20):
 #    model = KNeighborsClassifier(n_neighbors = i)
 #
@@ -222,8 +257,6 @@ acuraciaKfold = np.asarray([ acuracia[i:i+10].mean()
 #    r2=r2_score(diabetes_y_test,pred)
 #    print('RMSE para k= ' , K , 'é:', error, 'e R2 score', r2)
 #
-## Agora obtemos o classificador combinado pela regra de soma. Vai ser atribuida a classe que obtiver maior soma.
-#probClf2 = [ Pclasse[i] + PkvizShape[i] + PkvizRGB[i] for i in range(k) ]
 
 #b) Obter estimativa pontual e intervalo de confiança para o acerto de cada clf
 
