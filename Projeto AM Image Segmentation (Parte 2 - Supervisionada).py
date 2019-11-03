@@ -45,6 +45,11 @@ datasetTeste = pd.read_csv(urlTeste, skiprows=2)
 atributosShape = dataset.columns[0:9]
 atributosRGB = dataset.columns[9:]
 
+print('test ----- ')
+print(atributosShape)
+print('test ----- 2')
+print(atributosRGB)
+
 dataShape = dataset[atributosShape].copy()
 dataRGB = dataset[atributosRGB].copy()
 

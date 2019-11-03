@@ -173,7 +173,7 @@ probClf1 = np.vstack(probClf1).T
 
 # Agora deve-se obter o índice (qual classe) retornou o maior valor de probabilidade
 y_pred = np.argmax(probClf1, axis=1)
-print(y_pred)
+print(probClf1)
 
 #a) Validação cruzada estratificada repetida: "30 times ten-fold"
 n_folds = 10
