@@ -74,28 +74,6 @@ k = len(classes) # número de classes
 nShape = len(atributosShape)
 nRGB = len(atributosRGB)
 
-# ****************************************
-# *** Características da base de dados ***
-# ****************************************
-
-print("Dimensões do dataset com característica da forma:")
-print(dataShape.shape)
-print()
-
-print("Quantidade de valores únicos por atributo:")
-print(dataset.nunique())
-print()
-
-print("Dimensões do dataset de teste:")
-print(datasetTeste.shape)
-print()
-
-print("Primeiros dados:")
-print(dataset.head(5))
-
-print("Estatísica descritiva:")
-print(dataset.describe())
-
 # *************************
 # *** Pré-processamento ***
 # *************************
