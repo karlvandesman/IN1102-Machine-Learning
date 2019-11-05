@@ -5,28 +5,22 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import RepeatedKFold
 from sklearn.metrics import accuracy_score
 
-from models.gaussian import GaussianBayes
-from models.fuzzy import Fuzzy
+from models.bayesian_gaussian import GaussianBayes
 from datasetHelper import Dataset
 
 def main(args):
     
-    if args.command == 'gaussian':
-       gaussian();
+    if args.command == 'bayesian_gaussian':
+        bayesian_gaussian();
 
-    elif args.command == 'knn':
-        knn();
-
-    elif args.command == 'fuzzy':
-        fuzzy();
+    elif args.command == 'bayesian_knn':
+        bayesian_knn();
 
     else:
-        gaussian();
-        knn();
-        fuzzy();
+        bayesian_gaussian();
+        bayesian_knn();
 
-
-def gaussian():
+def bayesian_gaussian():
     
     dataset = Dataset();
 
@@ -92,16 +86,12 @@ def gaussian():
     print(acuraciaKfold);
     print('Gaussian Model Finished...')
 
-def knn():
+def bayesian_knn():
     pass;
-
-def fuzzy():
-    fz = Fuzzy();
-    fz.__str__();
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser();
-    parser.add_argument('-c', '--command', type=str, help='enter a command [gaussian, knn ,fuzzy] to run the specific model. Default is [all]', action='store', default='all');
+    parser.add_argument('-c', '--command', type=str, help='enter a command [gaussian, knn] to run the specific model. Default is [all]', action='store', default='all');
     args = parser.parse_args();
 
     main(args);
