@@ -1,2 +1,3 @@
 __pycache__
-models/__pycache__
+image-segmentation/__pycache__
+image-segmentation/models/__pycache__
