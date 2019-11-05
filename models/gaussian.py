@@ -36,15 +36,11 @@ class GaussianBayes:
 
     def __mult_norm_by_class(self, features, labels):
         mult_norm_dict = [];  # list of dens_prob by each class
-        
-        classes_dict = self.__group_by_class(features, labels);
+        classes = self.__group_by_class(features, labels);
     
         for class_ in self.classes:
-
-            class_features = classes_dict[str(class_)];
-            
-            class_mean = np.mean(class_features,axis=0);
-            class_cov = np.cov(class_features,rowvar=False);
+            class_mean = np.mean(classes[str(class_)],axis=0);
+            class_cov = np.cov(classes[str(class_)],rowvar=False);
 
             mult_norm_dict.append(multivariate_normal(class_mean, np.diag(class_cov)));
         
