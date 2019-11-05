@@ -73,14 +73,12 @@ class FuzzyClustering:
         self.epsilon = epsilon
         self.random_state = random_state
         
-    def fit(self, X, y):
-        """Fit the model using X as training data and y as target values.
+    def fit(self, X):
+        """Fit the model using X as training data.
         
         Parameters
         ----------
         X : Training data. If array or matrix, shape [n_samples, n_features]
-            
-        y : Target values of shape = [n_samples] or [n_samples, n_outputs]
         
         Returns
         -------
@@ -142,7 +140,7 @@ class FuzzyClustering:
 
         V = np.empty(self.n_clusters, p)
         
-        for _ in range(self.T):
+        for _ in range(self.max_iter):
             # *** Update the cluster centroids ***
         	# Equation (27)
         	
