@@ -57,31 +57,40 @@ def gaussian():
     for train_index, test_index in rkf.split(X):
         X_train, X_val = X[train_index], X[test_index];
         y_train, y_val = y[train_index], y[test_index];
-    
+       
+        X_train_shape, X_train_RGB = dataset.split_views(X_train);
+        X_val_shape, X_val_RGB = dataset.split_views(X_val);
+        
         # Adicionar parte de treinamento/predição do classificador  
         print('training...')
-        gb = GaussianBayes();
+        shapeGb = GaussianBayes();
+        RGBGb = GaussianBayes();
                 
-        shapeGb.fit(X_train_shape, y_train_shape, classes);
-        RGBGb.fit(X_train_RGB, y_train_RGB, classes);
-
+        shapeGb.fit(X_train_shape, y_train, classes);
+        RGBGb.fit(X_train_RGB, y_train, classes);
+        
         print('testing...')
         shapeGb.predict(X_val_shape);
         RGBGb.predict(X_val_RGB);
-        probClf1 = [];
-
-        for i in range(len(X_val)):
-            probClf1.append([(1 - L) * PClasse[j] + shapeGb.predicted_set[i][j] + RGBGb.predicted_set[i][j] for j in range(k) ]);
-                
-        # Agora deve-se obter o índice (qual classe) retornou o maior valor de probabilidade
-        y_pred = np.argmax(probClf1, axis=1);
-       
-        print(np.vstack(y_pred))
         
-        #acuracy.append(accuracy_score(y_val, y_pred));
-
+        probClf1 = [];
+        
+        for i in range(len(X_val)):
+            probClf1.append([(1 - L) * shapeGb.apriori_prob_classes[j] + shapeGb.predicted_set[i][j] + RGBGb.predicted_set[i][j] for j in range(len(classes)) ]);
+   
+        # Index of the class with the higher prob  
+        y_pred = np.argmax(probClf1, axis=1);
+        
+        print(y_pred);
+        print(y_val);
+        print(accuracy_score(y_val, y_pred));
+        
+        acuracy.append(accuracy_score(y_val, y_pred));
+    
     # Agora obtemos as médias de acurácias de 10 em 10 rodadas
-    acuraciaKfold = np.asarray([ acuracy[i:i+10].mean() for i in range(0, n_folds*n_repeats, 10) ]);
+    acuraciaKfold = np.asarray([ np.mean(acuracy[i:i+10]) for i in range(0, n_folds*n_repeats, 10) ]);
+    print(acuraciaKfold);
+    print('Gaussian Model Finished...')
 
 def knn():
     pass;

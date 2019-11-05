@@ -7,7 +7,7 @@ class Dataset:
         self.test_dataset = pd.read_csv('./data/segmentation.test', skiprows=2).drop(['REGION-PIXEL-COUNT', 'SHORT-LINE-DENSITY-5', 'SHORT-LINE-DENSITY-2'], axis=1);
 
     def split_views(self, dataset_):
-        return  pd.DataFrame(data=dataset_).iloc[:,0:6].copy(), pd.DataFrame(data=dataset_).iloc[:,6:].copy();
+        return dataset_[:,0:6], dataset_[:,6:];
 
     def getLabels(self, dataset_):
         return dataset_.index;
