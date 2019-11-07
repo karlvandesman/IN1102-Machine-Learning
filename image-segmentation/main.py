@@ -28,8 +28,11 @@ def bayesian_gaussian():
     dataset = Dataset();
 
     # Split Features and Classes
-    X = dataset.train_dataset.values;
-    y = dataset.train_dataset.index;
+#    X = dataset.train_dataset.values;
+#    y = dataset.train_dataset.index;
+    
+    X = dataset.test_dataset.values;
+    y = dataset.test_dataset.index;    
     
     # Normalizing the data
     standard_scaler = StandardScaler()
@@ -49,7 +52,6 @@ def bayesian_gaussian():
     seed = 10
     max_k_neighbors = 20
     k = len(classes)
-    PClasses = num_classes/len(dataset)
     
     # Cross-validation: "30 times ten-fold"
     n_folds = 10
@@ -58,67 +60,76 @@ def bayesian_gaussian():
     rkf = RepeatedStratifiedKFold(n_splits=n_folds, n_repeats=n_repeats, 
                                   random_state=seed);
     
-    accuracyGaussian = []
-    accuracyKNN = []
+    accuracy_gaussian = []
+    accuracy_KNN = []
 
     for train_index, test_index in rkf.split(X, y):
-        X_train, X_val = X[train_index], X[test_index];
-        y_train, y_val = y[train_index], y[test_index];
+        X_train, X_test = X[train_index], X[test_index];
+        y_train, y_test = y[train_index], y[test_index];
        
         X_train_shape, X_train_RGB = dataset.split_views(X_train);
-        X_val_shape, X_val_RGB = dataset.split_views(X_val);
+        X_test_shape, X_test_RGB = dataset.split_views(X_test);
         
-        shapeGb = GaussianBayes();
-        RGBGb = GaussianBayes();
+        classes, num_classes = np.unique(np.sort(y_train), return_counts=True)
+        PClasses = num_classes/len(y_train)
         
-        bayesianKNN_shape = BayesianKNN()
-        bayesianKNN_RGB = BayesianKNN()
+        bayesian_gaussian_shape = GaussianBayes();
+        bayesian_gaussian_RGB = GaussianBayes();
         
-        print('training...')        
-        shapeGb.fit(X_train_shape, y_train, classes);
-        RGBGb.fit(X_train_RGB, y_train, classes);
+        bayesian_KNN_shape = BayesianKNN()
+        bayesian_KNN_RGB = BayesianKNN()
         
-        bayesianKNN_shape.fit(X_train_shape, y_train)
-        bayesianKNN_RGB.fit(X_train_shape, y_train)
+        bayesian_gaussian_shape.fit(X_train_shape, y_train, classes)
+        bayesian_gaussian_RGB.fit(X_train_RGB, y_train, classes)
         
-        print('testing...')
-        shapeGb.predict(X_val_shape);
-        RGBGb.predict(X_val_RGB);
+        bayesian_KNN_shape.fit(X_train_shape, y_train)
+        bayesian_KNN_RGB.fit(X_train_RGB, y_train)
+                
+        prob_gaussian_shape = bayesian_gaussian_shape.predict_prob(X_test_shape)
+        prob_gaussian_RGB = bayesian_gaussian_RGB.predict_prob(X_test_RGB)
+                
+        prob_KNN_shape = bayesian_KNN_shape.predict_prob(X_test_shape)
+        prob_KNN_RGB = bayesian_KNN_RGB.predict_prob(X_test_RGB)
         
-        prob_KNN_shape = bayesianKNN_shape.predict_prob(X_train_shape)
-        prob_KNN_RGB = bayesianKNN_RGB.predict_prob(X_val_RGB)
-        
-        probClf1 = [(1 - L) * PClasses[j] + shapeGb.predicted_set[:, j] + 
-                    RGBGb.predicted_set[:, j] for j in range(k) ]
+        # Using the shape and RGB views to combine the classifiers
+        probClf1 = [(1 - L) * PClasses[j] + prob_gaussian_shape[:, j]
+                    + prob_gaussian_RGB[:, j] for j in range(k) ]
         
         probClf2 = [ (1 - L) * PClasses[j] + prob_KNN_shape[:, j] 
                     + prob_KNN_RGB[:, j] for j in range(k) ]
-
-        probClf2 = np.vstack(probClf2).T 
         
-        # Index of the class with the higher prob  
-        y_pred_gaussian = np.argmax(probClf1, axis=1);
+        # Fixing the shape
+        probClf1 = np.vstack(probClf1).T 
+        probClf2 = np.vstack(probClf2).T
+        
+        # Get the class with highest probbability
+        y_pred_gaussian = np.argmax(probClf1, axis=1)
         y_pred_KNN = np.argmax(probClf2, axis=1)
         
-        accuracyGaussian.append(accuracy_score(y_val, y_pred_gaussian));
-        accuracyKNN.append(accuracy_score(y_val, y_pred_KNN))
+        accuracy_gaussian.append(accuracy_score(y_test, y_pred_gaussian))
+        accuracy_KNN.append(accuracy_score(y_test, y_pred_KNN))
     
     # Now we get the mean for the repeated K-folds
-    gaussian_KFold = np.asarray([ np.mean(accuracyGaussian[i:i+10]) \
-                                 for i in range(0, n_folds*n_repeats, 10) ]);
+    accuracy_KFold_gaussian = \
+                np.asarray([ np.mean(accuracy_gaussian[i:i+n_folds])
+                            for i in range(0, n_folds*n_repeats, n_folds) ])
     
-    kNN_KFold = np.asarray([ np.mean(accuracyGaussian[i:i+10]) \
-                            for i in range(0, n_folds*n_repeats, 10) ]);
-    print(gaussian_KFold);
-    print('Gaussian Model Finished...')
-
+    accuracy_KFold_KNN = \
+                np.asarray([ np.mean(accuracy_KNN[i:i+n_folds])
+                            for i in range(0, n_folds*n_repeats, n_folds) ])
+        
+    print("KFold accuracy gaussian bayesian:\n", accuracy_KFold_gaussian)
+    print()
+    print("KFold accuracy kNN bayesian:\n", accuracy_KFold_KNN)
+    print()
+    
     # Comparing the values generated by the RepeatedStratifiedKFold
     # The Wilcoxon test computes di = xi - yi
     # H0: accuracyGaussian > accuracyKNN
     # H1: accuracyGaussian < accuracyKNN
-    statistic, pvalue = wilcoxon(gaussian_KFold, kNN_KFold)
+    statistic, pvalue = wilcoxon(accuracy_KFold_gaussian, accuracy_KFold_KNN)
     
-    print('Statistics=%.3f, p-value=%.3f' % (statistic, pvalue))
+    print('Statistics=%.9f, p-value=%.9f' % (statistic, pvalue))
     print()
     
     alpha = 0.05
