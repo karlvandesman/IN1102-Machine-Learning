@@ -70,7 +70,8 @@ class BayesianKNN:
         neighborsDist, neighborsIndex = self.knn.kneighbors(X)
                 
         # Summing the neighbors of each class
-        quantNeighbors = [ np.sum(self.labels[neighborsIndex]==j, axis=1) for j in range(self.num_classes) ]
+        quantNeighbors = [ np.sum(self.labels[neighborsIndex]==j, axis=1) \
+                          for j in range(self.num_classes) ]
         
         # Calculating the probability
         prob = np.array(quantNeighbors).T/self.n_neighbors
