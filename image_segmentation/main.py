@@ -3,6 +3,7 @@ import numpy as np
 
 from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
+#from sklearn.preprocessing import MinMaxScaler
 from sklearn.model_selection import RepeatedStratifiedKFold
 from sklearn.metrics import accuracy_score
 import scipy.stats as st
@@ -35,10 +36,6 @@ def bayesian_gaussian():
     X = dataset.test_dataset.values;
     y = dataset.test_dataset.index;    
     
-    # Standard scaler to ormalize the data
-    standard_scaler = StandardScaler()
-    X = standard_scaler.fit_transform(X)
-
     classes, num_classes = np.unique(np.sort(y), return_counts=True);
     
     # Transform labels - categoric <->  numeric
@@ -57,19 +54,28 @@ def bayesian_gaussian():
     # Cross-validation: "30 times ten-fold"
     n_folds = 10
     n_repeats = 30
-
+    
+    # Stardard scaler object
+    scaling_data = StandardScaler()
+    
     rkf = RepeatedStratifiedKFold(n_splits=n_folds, n_repeats=n_repeats, 
                                   random_state=seed);
     
     accuracy_gaussian = []
     accuracy_KNN = []
 
-    print('Training the classifiers\n')
+    print('Running %d repeated %d-fold...'%(n_repeats, n_folds))
 
     for train_index, test_index in rkf.split(X, y):
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
-       
+
+        # Standard scaler to normalize the data
+        scaling_data.fit(X_train)
+
+        X_train = scaling_data.transform(X_train)
+        X_test = scaling_data.transform(X_test)
+        
         X_train_shape, X_train_RGB = dataset.split_views(X_train)
         X_test_shape, X_test_RGB = dataset.split_views(X_test)
         
@@ -112,6 +118,8 @@ def bayesian_gaussian():
         accuracy_gaussian.append(accuracy_score(y_test, y_pred_gaussian))
         accuracy_KNN.append(accuracy_score(y_test, y_pred_KNN))
     
+    print('Finished.\n')
+    
     # Now we get the mean for the repeated K-folds
     accuracy_KFold_gaussian = \
                 np.asarray([ np.mean(accuracy_gaussian[i:i+n_folds])
@@ -120,7 +128,7 @@ def bayesian_gaussian():
     accuracy_KFold_KNN = \
                 np.asarray([ np.mean(accuracy_KNN[i:i+n_folds])
                             for i in range(0, n_folds*n_repeats, n_folds) ])
-        
+
 #    print("KFold accuracy bayesian gaussian:\n", accuracy_KFold_gaussian)
 #    print()
 #    print("KFold accuracy kNN bayesian:\n", accuracy_KFold_KNN)
@@ -147,7 +155,7 @@ def bayesian_gaussian():
     statistic, pvalue = wilcoxon(accuracy_KFold_gaussian, accuracy_KFold_KNN)
     
     print('*** Wilcoxon signed-ranks test *** \n'
-    	'p-value = %.8f)' % pvalue)
+    	'p-value = %.8f' % pvalue)
     
     alpha = 0.05
     
