@@ -38,6 +38,11 @@ def bayesian_gaussian():
     
     classes, num_classes = np.unique(np.sort(y), return_counts=True);
     
+    print('Dataset: Image Segmentation.')
+    print('X: (%d, %d), y: (%d, 1)'%(X.shape[0], X.shape[1], 
+          y.shape[0]))
+    print()
+
     # Transform labels - categoric <->  numeric
     encoding = LabelEncoder();
     encoding.classes_ = classes;
@@ -144,7 +149,7 @@ def bayesian_gaussian():
     print("Bayesian gaussian accuracy for 30 times 10-Fold (⍺=%.2f): \n"
     	"%.4f ± %.8f"%(alpha, np.mean(accuracy_KFold_gaussian), gaussian_CI))
     print()
-    print("Bayesian gaussian accuracy for 30 times 10-Fold (⍺=%.2f): \n"
+    print("Bayesian kNN accuracy for 30 times 10-Fold (⍺=%.2f): \n"
     	"%.4f ± %.8f"%(alpha, np.mean(accuracy_KFold_KNN), KNN_CI))
     print()
 
