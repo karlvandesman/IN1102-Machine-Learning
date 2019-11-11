@@ -36,30 +36,33 @@ class FuzzyClustering:
 
     Attributes
     ----------
-    cluster_centers_ : array, shape [n_clusters, n_features]
+    cluster_centers : array, shape [n_clusters, n_features]
         Coordinates of cluster centers.
 
-    membership_degree_: array, shape [n_samples, n_clusters]
+    sigma_term: float
+        The quotient of the gaussian function, 2*sigma^2.
+
+    membership_degree: array, shape [n_samples, n_clusters]
         Fuzzy partition membership degree for each sample, ui = (ui1, ..., uic)
         with values between 0 and 1, with sum over clusters equals to one.
 
-    weights_: array, shape [n_clusters, n_features]
+    weights: array, shape [n_clusters, n_features]
         Vector of weights that parameterize the adaptative distances.
 
-    labels_ : array, shape [n_samples,]
+    labels : array, shape [n_samples,]
         Labels of each point
 
     References
     ----------
-    M.R.P. Ferreira, F.A.T. de Carvalho.
+    [1] M.R.P. Ferreira, F.A.T. de Carvalho.
         "Kernel fuzzy c-means with automatic variable weighting",  Fuzzy Sets 
         and Systems, 237, 1-46, 2014
 
-    R. Winkler, F. Klawonn, R. Kruse
+    [2] R. Winkler, F. Klawonn, R. Kruse
         "Fuzzy c-means in high dimensional spaces", Int. J. Fuzzy Syst. Appl. 1 
         (1) (2011) 1–16.
 
-    R. Winkler, F. Klawonn, R. Kruse
+    [3] R. Winkler, F. Klawonn, R. Kruse
         "Problems of fuzzy c-means clustering and similar algorithms with high 
         dimensional data sets", Int. J. Fuzzy Syst. Appl. 1 (1) (2011) 1–16.
     """
@@ -85,7 +88,7 @@ class FuzzyClustering:
         self : returns a "trained" model.
         """
         
-        p = X.shape[1]
+        self.p = X.shape[1]
         
         # Calculating all the distances between 2 rows
         X_diff = np.linalg.norm(X[None, :, :] - X[:, None, :], axis=2)
@@ -94,13 +97,13 @@ class FuzzyClustering:
         
         # 2*sigma^2: obtained by the quantiles mean's, for each feature
         sigma_term = [np.mean([np.quantile(X_diff[i], 0.1), 
-                               np.quantile(X_diff[i], 0.9)]) for i in range(p)]
+                               np.quantile(X_diff[i], 0.9)]) for i in range(self.p)]
         
         self.sigma_term = sigma_term
         
         return self
     
-    def __gaussianKernel(X, V, sigma_term):
+    def __gaussianKernel(self, X, V):
         '''Implements the Gaussian kernel between two arrays.
         
         Parameters
@@ -111,7 +114,19 @@ class FuzzyClustering:
             The quotient of the gaussian function, 2*sigma^2.
         '''
         
-        return np.exp(-(np.linalg.norm(X-V, axis=2)**2/sigma_term))
+        return np.exp(-(np.linalg.norm(X-V, axis=2)**2/self.sigma_term))
+
+    def __suitable_squared_dist(self, X, V):
+      ''' Calculates the suitable squared distance between the pattern x_k and
+      the cluster centroid v_i. This implementation consider the constraint 
+      that the product of the weights of the variables for each cluster must
+      be equal to one (Equation 22, [1]).
+      '''
+      
+      phi_squared = [ self.weights[j] * 2 * (1 - self.__gaussianKernel(X[j], V[j])) 
+                    for j in range(self.p) ]
+      
+      return np.sum(phi_squared)
 
     def predict(self, X):
         """Predict the class labels for the provided data.
@@ -136,7 +151,7 @@ class FuzzyClustering:
         
         # By the condition of weight's product to be 1, all weights are 
         # initiallized as 1
-        self.weights_ = np.ones((p, 1))
+        self.weights = np.ones((p, 1))
 
         V = np.empty(self.n_clusters, p)
         
@@ -159,6 +174,30 @@ class FuzzyClustering:
         
         	# *** Update the weights ***
         	# Equation (31)
-        
-        	# *** Membership degree update ***
-        	# Equation (32)
+
+#            U = np.sum( ((self.weights_ * self.__suitable_squared_dist(X, V)) \
+#                       /(self.weights_ * self.__suitable_squared_dist(X, V))) )
+
+
+            # *** Membership degree update ***
+            # Equation (32)
+            for k in range(n):
+              sum_terms = 0
+              for i in range(self.n_clusters):
+                num = self.__suitable_squared_dist(X[k, :], V[i, :])
+                for h in range(self.n_clusters):
+                  den = self.__suitable_squared_dist(X[k, :], V[i, :])
+                  sum_terms += (num/den)**(1/(self.m-1))
+                U[i, k] = 1/sum_terms
+            
+            # *** Cost function ***
+            # Equation (15)
+            sum_terms = 0
+            for i in range(self.n_clusters):
+              for k in range(n):
+                sum_terms += U**self.m * self.__suitable_squared_dist(X[k, :], 
+                                                                      V[i, :])
+            
+            self.cost = sum_terms
+              
+              
