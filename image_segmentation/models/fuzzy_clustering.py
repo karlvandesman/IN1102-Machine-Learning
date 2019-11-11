@@ -67,7 +67,7 @@ class FuzzyClustering:
         dimensional data sets", Int. J. Fuzzy Syst. Appl. 1 (1) (2011) 1–16.
     """
     
-    def __init__(self, n_clusters, m=1.6, max_iter=150, epsilon=10**(-10), 
+    def __init__(self, n_clusters=7, m=1.6, max_iter=150, epsilon=10**(-10), 
                  random_state=None):
         
         self.n_clusters = n_clusters
@@ -137,8 +137,7 @@ class FuzzyClustering:
             
         Returns
         -------
-        y : array of shape [n_queries] or [n_queries, n_outputs]
-            Class labels for each data sample.
+
         """
                 
         n, p = X.shape
@@ -155,30 +154,42 @@ class FuzzyClustering:
 
         V = np.empty(self.n_clusters, p)
         
-        for _ in range(self.max_iter):
-            # *** Update the cluster centroids ***
-        	# Equation (27)
+        self.cost = 100 #just initializing a value
+        iter_ = 0
+
+        while((self.cost < self.epsilon) and (iter_ < self.max_iter)):
+          iter_ += 1
+
+          # TODO: Initial implementation was made using for loops, but it can 
+          # be done using vectorization for a faster algorithm
+
+          # *** Update the cluster centroids ***
+          # Equation (27)
         	
-            # TODO: Initial implementation was made using for loops, but it can 
-            # be done using vectorization for a faster algorithm
-            for i in range(self.n_clusters):
-                for j in range(p):
-                    sum_num = 0
-                    sum_den = 0
-                    for k in range(n):
-                        sum_num += U[i, k]**self.m * self.__gaussianKernel(X[k, j], V[i, j]) * X[k, j]
-                        sum_den += U[i, k]**self.m * self.__gaussianKernel(X[k, j], V[i, j])
-                    
-                    self.V[i, j] = sum_num/sum_den
-                    #V[i, j] = np.sum( X[:, j])/np.sum(u**m * kernel, axis=1)
-        
-        	# *** Update the weights ***
-        	# Equation (31)
+          for i in range(self.n_clusters):
+            for j in range(p):
+              sum_num = 0
+              sum_den = 0
+              for k in range(n):
+                sum_num += U[i, k]**self.m * self.__gaussianKernel(X[k, j], V[i, j]) * X[k, j]
+                sum_den += U[i, k]**self.m * self.__gaussianKernel(X[k, j], V[i, j])
+                  
+              self.V[i, j] = sum_num/sum_den
+          
+          #** Update the weights ***
+          # Equation (31)
 
-#            U = np.sum( ((self.weights_ * self.__suitable_squared_dist(X, V)) \
-#                       /(self.weights_ * self.__suitable_squared_dist(X, V))) )
-
-
+          sum_num = np.zeros((p, 1))
+          for j in range(p):
+            for l in range(p):
+              sum_num = 0
+              sum_den = 0
+              for i in range(self.n_clusters):
+                for k in range(n):
+                  sum_num[l] += U[i, k]**(self.m) * 2 * (1 - self.__gaussianKernel(X[k, l], V[i, l]))
+                  sum_den += U[i, k]**(self.m) * 2 * (1 - self.__gaussianKernel(X[k, j], V[i, j]))
+            self.weights[j] = (np.prod(sum_num))**p/sum_den
+            
             # *** Membership degree update ***
             # Equation (32)
             for k in range(n):
@@ -190,6 +201,8 @@ class FuzzyClustering:
                   sum_terms += (num/den)**(1/(self.m-1))
                 U[i, k] = 1/sum_terms
             
+            self.membership_degree = U 
+
             # *** Cost function ***
             # Equation (15)
             sum_terms = 0
@@ -197,7 +210,5 @@ class FuzzyClustering:
               for k in range(n):
                 sum_terms += U**self.m * self.__suitable_squared_dist(X[k, :], 
                                                                       V[i, :])
-            
             self.cost = sum_terms
-              
               
