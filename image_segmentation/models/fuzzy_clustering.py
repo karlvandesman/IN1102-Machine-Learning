@@ -99,9 +99,9 @@ class FuzzyClustering:
         sigma_term = [np.mean([np.quantile(X_diff[i], 0.1), 
                                np.quantile(X_diff[i], 0.9)]) for i in range(self.p)]
         
-        self.sigma_term = sigma_term
+        self.sigma_term = np.array(sigma_term)
     
-    def __gaussianKernel(self, X, V):
+    def __gaussianKernel(self, x, v, sigma_term):
         '''Implements the Gaussian kernel between two arrays.
         
         Parameters
@@ -112,7 +112,21 @@ class FuzzyClustering:
             The quotient of the gaussian function, 2*sigma^2.
         '''
         
+        return np.exp(-((x-v)**2/sigma_term))
+
+    def __gaussianKernel2(self, X, V):
+        '''Implements the Gaussian kernel between two arrays.
+        
+        Parameters
+        ----------
+        X: array-like
+        V: array-like
+        sigma_term: array-like
+            The quotient of the gaussian function, 2*sigma^2.
+        '''
+        
         return np.exp(-(np.linalg.norm(X-V, axis=2)**2/self.sigma_term))
+
 
     def __suitable_squared_dist(self, X, V):
       ''' Calculates the suitable squared distance between the pattern x_k and
@@ -121,7 +135,7 @@ class FuzzyClustering:
       be equal to one (Equation 22, [1]).
       '''
       
-      phi_squared = [ self.weights[j] * 2 * (1 - self.__gaussianKernel(X[j], V[j])) 
+      phi_squared = [ self.weights[j] * 2 * (1 - self.__gaussianKernel(X[j], V[j], self.sigma_term[j])) 
                     for j in range(self.p) ]
       
       return np.sum(phi_squared)
@@ -145,17 +159,18 @@ class FuzzyClustering:
         # Randomly initialize the fuzzy membership degree
         U = np.random.rand(n, self.n_clusters)
         U = U/np.sum(U)
-        
+
         # By the condition of weight's product to be 1, all weights are 
         # initiallized as 1
         self.weights = np.ones((p, 1))
-
+        
         V = np.empty((self.n_clusters, p))
+        self.membership_degree = U
         
         self.cost = 100 #just initializing a value
         iter_ = 0
 
-        while((self.cost < self.epsilon) and (iter_ < self.max_iter)):
+        while((self.cost > self.epsilon) and (iter_ < self.max_iter)):
           iter_ += 1
 
           # TODO: Initial implementation was made using for loops, but it can 
@@ -169,10 +184,10 @@ class FuzzyClustering:
               sum_num = 0
               sum_den = 0
               for k in range(n):
-                sum_num += U[i, k]**self.m * self.__gaussianKernel(X[k, j], V[i, j]) * X[k, j]
-                sum_den += U[i, k]**self.m * self.__gaussianKernel(X[k, j], V[i, j])
+                sum_num += U[k, i]**(self.m) * self.__gaussianKernel(X[k, j], V[i, j], self.sigma_term[j]) * X[k, j]
+                sum_den += U[k, i]**(self.m) * self.__gaussianKernel(X[k, j], V[i, j], self.sigma_term[j])
                   
-                V[i, j] = sum_num/sum_den
+              V[i, j] = sum_num/sum_den
           
           #** Update the weights ***
           # Equation (31)
@@ -180,12 +195,12 @@ class FuzzyClustering:
           sum_num = np.zeros((p, 1))
           for j in range(p):
             for l in range(p):
-              sum_num = 0
+              sum_num[l] = 0
               sum_den = 0
               for i in range(self.n_clusters):
                 for k in range(n):
-                  sum_num[l] += U[i, k]**(self.m) * 2 * (1 - self.__gaussianKernel(X[k, l], V[i, l]))
-                  sum_den += U[i, k]**(self.m) * 2 * (1 - self.__gaussianKernel(X[k, j], V[i, j]))
+                  sum_num[l] += U[k, i]**(self.m) * 2 * (1 - self.__gaussianKernel(X[k, l], V[i, l], self.sigma_term[l]))
+                  sum_den += U[k, i]**(self.m) * 2 * (1 - self.__gaussianKernel(X[k, j], V[i, j], self.sigma_term[j]))
             self.weights[j] = (np.prod(sum_num))**p/sum_den
             
             # *** Membership degree update ***
@@ -197,16 +212,16 @@ class FuzzyClustering:
                 for h in range(self.n_clusters):
                   den = self.__suitable_squared_dist(X[k, :], V[i, :])
                   sum_terms += (num/den)**(1/(self.m-1))
-                U[i, k] = 1/sum_terms
+                U[k, i] = 1/sum_terms
             
-            self.membership_degree = U 
+            self.membership_degree = U
 
             # *** Cost function ***
             # Equation (15)
             sum_terms = 0
             for i in range(self.n_clusters):
               for k in range(n):
-                sum_terms += U**self.m * self.__suitable_squared_dist(X[k, :], 
-                                                                      V[i, :])
+                sum_terms += U[k, i]**self.m * self.__suitable_squared_dist(X[k, :], 
+                                                                            V[i, :])
             self.cost = sum_terms
               
