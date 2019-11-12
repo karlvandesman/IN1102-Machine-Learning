@@ -14,6 +14,20 @@ from models.bayesian_gaussian import GaussianBayes
 from models.bayesian_knn import BayesianKNN
 from datasetHelper import Dataset
 
+def eda():
+  
+    dataset = Dataset()
+    
+    print(dataset.info)
+    
+    print('For the training data...')
+    # Split Features and Classes
+    dataset.info(dataset.train_dataset)
+
+    print('For the testing data...')
+    # Split Features and Classes
+    dataset.info(dataset.test_dataset)
+
 def bayesian():
     
     dataset = Dataset();
@@ -164,20 +178,29 @@ def bayesian():
 def fuzzy_clustering():
 
     dataset = Dataset();
-
-    # Split Features and Classes
-    # X = dataset.train_dataset.values;
-    # y = dataset.train_dataset.index;
+ 
+    X = dataset.train_dataset.values
     
-    X = dataset.test_dataset.values;
-    y = dataset.test_dataset.index;
+    scaling_data = StandardScaler()
+    scaling_data.fit(X)
+    X = scaling_data.transform(X)
+    
+    X_shape, X_RGB = dataset.split_views(X)
+    
+    fuzzy_clustering_shape = FuzzyClustering()
+    fuzzy_clustering_RGB = FuzzyClustering()
 
-    fyzzy_clustering = FuzzyClustering();
+    fuzzy_clustering_shape.fit(X_shape)
+    fuzzy_clustering_RGB.fit(X_RGB)
+    
+    print("2*sigma_term^2: ", fuzzy_clustering_shape.sigma_term)
+    print("2*sigma_term^2: ", fuzzy_clustering_RGB.sigma_term)
+    
+    fuzzy_clustering_shape.predict(X_shape)
+    fuzzy_clustering_RGB.predict(X_RGB)
 
-    fyzzy_clustering.fit(X);
-    fyzzy_clustering.predict(X);
-
-    #print(fyzzy_clustering.cost)
+    print("Custo:", fuzzy_clustering_shape.cost)
+    print("membership_degree: \n", fuzzy_clustering_shape.membership_degree)
 
 def main(args):
     
@@ -187,13 +210,15 @@ def main(args):
     elif args.command == 'fuzzy':
         fuzzy_clustering();
 
-   
+    elif args.command == 'eda':
+        eda()
+    
 if __name__ == '__main__':
     parser = argparse.ArgumentParser();
     parser.add_argument('-c', '--command', type=str, 
-                        help=('enter a command [bayesian or fuzzy] to run the'
-                        'specific model. Default is [bayesian]'), 
-                        action='store', default='bayesian');
+                        help=('enter a command [bayesian, fuzzy or eda] to run' 
+                        'the specific model. Default is [eda]'), 
+                        action='store', default='eda');
     args = parser.parse_args();
 
     main(args);
