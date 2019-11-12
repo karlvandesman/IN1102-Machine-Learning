@@ -100,8 +100,6 @@ class FuzzyClustering:
                                np.quantile(X_diff[i], 0.9)]) for i in range(self.p)]
         
         self.sigma_term = sigma_term
-        
-        return self
     
     def __gaussianKernel(self, X, V):
         '''Implements the Gaussian kernel between two arrays.
@@ -152,7 +150,7 @@ class FuzzyClustering:
         # initiallized as 1
         self.weights = np.ones((p, 1))
 
-        V = np.empty(self.n_clusters, p)
+        V = np.empty((self.n_clusters, p))
         
         self.cost = 100 #just initializing a value
         iter_ = 0
@@ -174,7 +172,7 @@ class FuzzyClustering:
                 sum_num += U[i, k]**self.m * self.__gaussianKernel(X[k, j], V[i, j]) * X[k, j]
                 sum_den += U[i, k]**self.m * self.__gaussianKernel(X[k, j], V[i, j])
                   
-              self.V[i, j] = sum_num/sum_den
+                V[i, j] = sum_num/sum_den
           
           #** Update the weights ***
           # Equation (31)

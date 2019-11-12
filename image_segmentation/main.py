@@ -9,23 +9,12 @@ from sklearn.metrics import accuracy_score
 import scipy.stats as st
 from scipy.stats import wilcoxon
 
+from models.fuzzy_clustering import FuzzyClustering
 from models.bayesian_gaussian import GaussianBayes
 from models.bayesian_knn import BayesianKNN
 from datasetHelper import Dataset
 
-def main(args):
-    
-    if args.command == 'bayesian_gaussian':
-        bayesian_gaussian();
-
-    elif args.command == 'bayesian_knn':
-        bayesian_knn();
-
-    else:
-        bayesian_gaussian();
-        bayesian_knn();
-
-def bayesian_gaussian():
+def bayesian():
     
     dataset = Dataset();
 
@@ -171,15 +160,40 @@ def bayesian_gaussian():
     	print('We have strong evidence (alpha = %.2f) that kNN classifier '
     	'performed better than the Gaussian classifier'%alpha)
 
-def bayesian_knn():
-    pass;
 
+def fuzzy_clustering():
+
+    dataset = Dataset();
+
+    # Split Features and Classes
+    # X = dataset.train_dataset.values;
+    # y = dataset.train_dataset.index;
+    
+    X = dataset.test_dataset.values;
+    y = dataset.test_dataset.index;
+
+    fyzzy_clustering = FuzzyClustering();
+
+    fyzzy_clustering.fit(X);
+    fyzzy_clustering.predict(X);
+
+    #print(fyzzy_clustering.cost)
+
+def main(args):
+    
+    if args.command == 'bayesian':
+        bayesian();
+
+    elif args.command == 'fuzzy':
+        fuzzy_clustering();
+
+   
 if __name__ == '__main__':
     parser = argparse.ArgumentParser();
     parser.add_argument('-c', '--command', type=str, 
-                        help=('enter a command [gaussian, knn] to run the'
-                        'specific model. Default is [all]'), 
-                        action='store', default='all');
+                        help=('enter a command [bayesian or fuzzy] to run the'
+                        'specific model. Default is [bayesian]'), 
+                        action='store', default='bayesian');
     args = parser.parse_args();
 
     main(args);
