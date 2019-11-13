@@ -3,17 +3,18 @@
 """
 @author: karlvandesman
 """
-
+import numpy as np
 import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 pd.set_option('display.max_columns', 59)
-
 
 #%% ---------------
 ### Reading the csv
 ### ---------------
 
-df = pd.read_csv('data/train.csv')
+df = pd.read_csv('data/train.csv', index_col='id')
 
 print(df.head())
 print()
@@ -24,82 +25,52 @@ columns_bin = [ i for i in range(len(columns)) if df.columns.values[i].endswith(
 
 columns_cat = [ i for i in range(len(columns)) if df.columns.values[i].endswith('cat')]
 
-#%% ---------
-### Meta-data
-### ---------
+#%% ------------------
+### Splitting features
+### ------------------
 
-data = []
-for f in df.columns:
-    # Defining the role
-    if f == 'target':
-        role = 'target'
-    elif f == 'id':
-        role = 'id'
-    else:
-        role = 'input'
-         
-    # Defining the level
-    if 'bin' in f or f == 'target':
-        level = 'binary'
-    elif 'cat' in f or f == 'id':
-        level = 'nominal'
-    elif df[f].dtype == float:
-        level = 'interval'
-    elif df[f].dtype == int:
-        level = 'ordinal'
-        
-    # Initialize keep to True for all variables except for id
-    keep = True
-    if f == 'id':
-        keep = False
-    
-    # Defining the data type 
-    dtype = df[f].dtype
-    
-    # Creating a Dict that contains all the metadata for the variable
-    f_dict = {
-        'varname': f,
-        'role': role,
-        'level': level,
-        'keep': keep,
-        'dtype': dtype
-    }
-    data.append(f_dict)
- 
-meta = pd.DataFrame(data, columns=['varname', 'role', 'level', 'keep', 'dtype'])
+# Categorical, numerical and binary
 
-meta.set_index('varname', inplace=True)
- 
+features = df.columns.tolist()
+features.remove('target')
+
+numeric_features = [x for x in features if x[-3:] not in ['bin', 'cat']]
+categorical_features = [x for x in features if x[-3:]=='cat']
+binary_features = [x for x in features if x[-3:]=='bin']
+
+
 #%% ----------------------
 ### Descriptive statistics
 ### ----------------------
 
-# Let's see how unbalanced the dataset is
-quantity_class = 100*df['target'].value_counts()/df.shape[0]
+# Let's see how imbalanced the dataset is
+plt.bar(['Not filed', 'filed'], 100*df.target.value_counts()/df.shape[0],
+        color=['r', 'b'])
+plt.title('Distributions of claims')
+plt.ylabel('%')
+plt.show()
 
-print('Quantity of values by class:')
-print('0', quantity_class[0])
-print('1', quantity_class[1])
-print()
+# Plotting the boxplot for each numeric feature
+df[numeric_features].boxplot(figsize=(30,30))
 
+print("Percentage of 1's by feature:", df[df.columns[columns_bin]].mean()*100)
 
-df_bin = df[meta[(meta['level']=='binary') & (meta.role =='input')].index]
-print('Statistics for binary features:\n', df_bin.describe())
+#print('Statistics for binary features:\n', df_bin.describe())
 
-df_nominal = df[meta[(meta['level']=='nominal') & (meta.role=='input')].index]
-print('Statistics for nominal features:\n', df_nominal.describe())
+print('Statistics for nominal features:\n', df[categorical_features].describe())
 
-df_interval = df[meta[(meta['level']=='interval')].index]
-print('Statistics for features with interval values:\n', df_interval.describe())
-
-df_ordinal = df[meta[(meta['level']=='ordinal')].index]
-print('Statistics for ordinal features:\n', df_ordinal.describe())
+# Numerical data 
+print('Statistics for features with interval values:\n', 
+      df[numeric_features].describe())
 
 #%% --------------
 ### Missing values
 ### --------------
 
 # The missing values are represented as -1
+
+#print('Number of missing values by variable (%)')
+#(df==-1).sum() * 100/len(df)
 
 vars_with_missing = []
 
@@ -110,7 +81,7 @@ for f in df.columns:
         vars_with_missing.append(f)
         missings_perc = missings/df.shape[0]
         
-        print('{} has {} records ({:.4%})'.format(f, missings, missings_perc))
+        print('{} has {} missing records ({:.4%})'.format(f, missings, missings_perc))
         
 print('In total, there are {} of {} variables with missing values'.format(len(vars_with_missing), df.shape[1]))
 
@@ -119,16 +90,67 @@ print('In total, there are {} of {} variables with missing values'.format(len(va
 # Categorical -> substitute by its mode
 # Numerical -> substitute by its mean/median (consider the outliers)
 
-#%% --------------
-### Undersampling
-### --------------
+#%% ---------------
+### Binary Features
+### ---------------
 
-seed = 595212
+# Distribution of binary features grouped by class
 
-X = df[meta[(meta.role=='input')].index].values
-y = df.target.values
+for column in (binary_features+categorical_features):
+    ### Figure initiation 
+    fig = plt.figure(figsize=(18,12))
+    
+    ### Number of occurrences per binary value - target pair
+    ax = sns.countplot(x=column, hue="target", data=df, ax = plt.subplot(211));
+    # X-axis Label
+    plt.xlabel(column, fontsize=14);
+    # Y-axis Label
+    plt.ylabel('Number of occurrences', fontsize=14)
+    # Adding Super Title (One for a whole figure)
+    plt.suptitle('Plots for '+column, fontsize=18);
+    
+    ### Adding percents over bars
+    # Getting heights of our bars
+    height = [p.get_height() for p in ax.patches]
+    # Counting number of bar groups 
+    ncol = int(len(height)/2)
+    # Counting total height of groups
+    total = [height[i] + height[i + ncol] for i in range(ncol)] * 2
+    # Looping through bars
+    for i, p in enumerate(ax.patches):    
+        # Adding percentages
+        ax.text(p.get_x()+p.get_width()/2, height[i]*1.01 + 1000,
+                '{:1.0%}'.format(height[i]/total[i]), ha="center", size=14) 
 
-from imblearn.under_sampling import ClusterCentroids
+#%% ---------------
+### Categorical Features
+### ---------------
 
-cc = ClusterCentroids(random_state=seed)
-X_resampled, y_resampled = cc.fit_resample(X, y)
+# Distribution of categorical features grouped by class
+# (The last categorical feature is omitted)
+for column in categorical_features[:-1]:
+    # Figure initiation
+    fig = plt.figure(figsize=(18,12))
+    
+    ### Number of occurrences per categoty - target pair
+    ax = sns.countplot(x=column, hue="target", data=df, ax = plt.subplot(211));
+    # X-axis Label
+    plt.xlabel(column, fontsize=14);
+    # Y-axis Label
+    plt.ylabel('Number of occurrences', fontsize=14)
+    # Adding Super Title (One for a whole figure)
+    plt.suptitle('Plots for '+column, fontsize=18);
+    
+    ### Adding percents over bars
+    # Getting heights of our bars
+    height = [p.get_height() for p in ax.patches]
+    # Counting number of bar groups 
+    ncol = int(len(height)/2)
+    # Counting total height of groups
+    total = [height[i] + height[i + ncol] for i in range(ncol)] * 2
+    # Looping through bars
+    for i, p in enumerate(ax.patches):    
+        # Adding percentages
+        ax.text(p.get_x()+p.get_width()/2, height[i]*1.01 + 1000,
+                '{:1.0%}'.format(height[i]/total[i]), ha="center", size=14)         
+
