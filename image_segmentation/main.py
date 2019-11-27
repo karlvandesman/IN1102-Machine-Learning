@@ -30,16 +30,16 @@ def eda():
 
 def bayesian():
     
-    dataset = Dataset();
+    dataset = Dataset()
 
     # Split Features and Classes
 #    X = dataset.train_dataset.values;
 #    y = dataset.train_dataset.index;
     
-    X = dataset.test_dataset.values;
-    y = dataset.test_dataset.index;    
-    
-    classes, num_classes = np.unique(np.sort(y), return_counts=True);
+    X = dataset.test_dataset.values
+    y = dataset.test_dataset.index 
+
+    classes, num_classes = np.unique(np.sort(y), return_counts=True)
     
     print('Dataset: Image Segmentation.')
     print('X: (%d, %d), y: (%d, 1)'%(X.shape[0], X.shape[1], 
@@ -54,10 +54,11 @@ def bayesian():
     classes = encoding.transform(classes);
     
     # Parameters
-    L = 2		# quantity of views
+    L = 2		# number of views
     seed = 10
-    max_k_neighbors = 20
     k = len(classes)
+    best_k_train = 14 # best n_neighbors for kNN (validation with training data)
+    best_k_test = 9 # best n_neighbors for kNN (validation with test data)
     
     # Cross-validation: "30 times ten-fold"
     n_folds = 10
@@ -67,13 +68,13 @@ def bayesian():
     scaling_data = StandardScaler()
     
     rkf = RepeatedStratifiedKFold(n_splits=n_folds, n_repeats=n_repeats, 
-                                  random_state=seed);
+                                  random_state=seed)
     
     accuracy_gaussian = []
     accuracy_KNN = []
 
-    print('Running %d repeated %d-fold...'%(n_repeats, n_folds))
-
+    print('Running %d repeated K-fold with K=%d...'%(n_repeats, n_folds))
+    run_kfold = 0
     for train_index, test_index in rkf.split(X, y):
         X_train, X_test = X[train_index], X[test_index]
         y_train, y_test = y[train_index], y[test_index]
@@ -93,8 +94,8 @@ def bayesian():
         bayesian_gaussian_shape = GaussianBayes()
         bayesian_gaussian_RGB = GaussianBayes()
         
-        bayesian_KNN_shape = BayesianKNN()
-        bayesian_KNN_RGB = BayesianKNN()
+        bayesian_KNN_shape = BayesianKNN(n_neighbors=best_k_train)
+        bayesian_KNN_RGB = BayesianKNN(n_neighbors=best_k_train)
 
         bayesian_gaussian_shape.fit(X_train_shape, y_train, classes)
         bayesian_gaussian_RGB.fit(X_train_RGB, y_train, classes)
@@ -125,7 +126,10 @@ def bayesian():
         
         accuracy_gaussian.append(accuracy_score(y_test, y_pred_gaussian))
         accuracy_KNN.append(accuracy_score(y_test, y_pred_KNN))
-    
+        
+        run_kfold += 1
+        if run_kfold%10==0: print('%dº 10-fold finished'%(run_kfold//10))
+        
     print('Finished.\n')
     
     # Now we get the mean for the repeated K-folds
