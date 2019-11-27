@@ -95,7 +95,7 @@ print('Best K: ', best_K)
 x = range(1, max_n_neighbors+1)
 
 plt.plot(x, accuracy_KNN, marker='o');
-plt.xticks(np.arange(min(x), max(x), 3))
+plt.xticks(np.arange(0, max(x), 2))
 plt.title('Tuning kNN for the training/validation data')
 plt.ylabel('Accuracy')
 plt.xlabel('n_neighbors')
