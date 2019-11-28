@@ -1,4 +1,4 @@
-	#!/usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 __author__      = "Karl Sousa"
@@ -155,64 +155,73 @@ class FuzzyClustering:
         n, p = X.shape
         
         np.random.seed(self.random_state)
+        print('Start running fuzzy clustering...')
         
         # Randomly initialize the fuzzy membership degree
         U = np.random.rand(n, self.n_clusters)
-        U = U/np.sum(U)
-
+        U = U/np.sum(U, axis=1).reshape(-1, 1)  # normalizing such that
+                                                # sum U[i] over c clusters = 1
+        
         # By the condition of weight's product to be 1, all weights are 
         # initiallized as 1
         self.weights = np.ones((p, 1))
         
         V = np.empty((self.n_clusters, p))
+        
         self.membership_degree = U
+        #print('Initial value for U (membership degree)\n', U)
         
         self.cost = 100 #just initializing a value
+        last_cost = 200
+        
         iter_ = 0
+        while((self.cost > self.epsilon) and (iter_ < self.max_iter) and abs((self.cost-last_cost)/last_cost)>0.001 ):
+            iter_ += 1
 
-        while((self.cost > self.epsilon) and (iter_ < self.max_iter)):
-          iter_ += 1
-
-          # TODO: Initial implementation was made using for loops, but it can 
-          # be done using vectorization for a faster algorithm
-
-          # *** Update the cluster centroids ***
-          # Equation (27)
+            # TODO: Initial implementation was made using for loops, but it can 
+            # be done using vectorization for a faster algorithm
+        
+            # *** Update the cluster centroids ***
+            # Equation (27)
         	
-          for i in range(self.n_clusters):
+            for i in range(self.n_clusters):
+                for j in range(p):
+                    sum_num = 0
+                    sum_den = 0
+                    for k in range(n):
+                        sum_num += U[k, i]**(self.m) * self.__gaussianKernel(X[k, j], V[i, j], self.sigma_term[j]) * X[k, j]
+                        sum_den += U[k, i]**(self.m) * self.__gaussianKernel(X[k, j], V[i, j], self.sigma_term[j])
+                      
+                    V[i, j] = sum_num/sum_den
+            self.centroids = V
+            
+            #** Update the weights ***
+            # Equation (31)
+            sum_num = np.zeros((p, 1))
             for j in range(p):
-              sum_num = 0
-              sum_den = 0
-              for k in range(n):
-                sum_num += U[k, i]**(self.m) * self.__gaussianKernel(X[k, j], V[i, j], self.sigma_term[j]) * X[k, j]
-                sum_den += U[k, i]**(self.m) * self.__gaussianKernel(X[k, j], V[i, j], self.sigma_term[j])
-                  
-              V[i, j] = sum_num/sum_den
-          
-          #** Update the weights ***
-          # Equation (31)
+                for l in range(p):
+                    sum_num[l] = 0
+                    sum_den = 0
+                    for i in range(self.n_clusters):
+                        for k in range(n):
+                            sum_num[l] += U[k, i]**(self.m) * 2 * (1 - self.__gaussianKernel(X[k, l], V[i, l], self.sigma_term[l]))
+                            sum_den += U[k, i]**(self.m) * 2 * (1 - self.__gaussianKernel(X[k, j], V[i, j], self.sigma_term[j]))
+#                print('2*(1-Kernel):', 2*(1 - self.__gaussianKernel(X[k, l], V[i, l], self.sigma_term[l])))
+#                print('For j=',j ,'sum_num:', sum_num)
+#                print('for %d, weights_num_prod=%.12f, weights_den=%.12f' %(j, np.prod(sum_num), sum_den))
 
-          sum_num = np.zeros((p, 1))
-          for j in range(p):
-            for l in range(p):
-              sum_num[l] = 0
-              sum_den = 0
-              for i in range(self.n_clusters):
-                for k in range(n):
-                  sum_num[l] += U[k, i]**(self.m) * 2 * (1 - self.__gaussianKernel(X[k, l], V[i, l], self.sigma_term[l]))
-                  sum_den += U[k, i]**(self.m) * 2 * (1 - self.__gaussianKernel(X[k, j], V[i, j], self.sigma_term[j]))
-            self.weights[j] = (np.prod(sum_num))**p/sum_den
+                self.weights[j] = (np.prod(sum_num))**(1/p)/(sum_den)
             
             # *** Membership degree update ***
             # Equation (32)
             for k in range(n):
-              sum_terms = 0
-              for i in range(self.n_clusters):
-                num = self.__suitable_squared_dist(X[k, :], V[i, :])
-                for h in range(self.n_clusters):
-                  den = self.__suitable_squared_dist(X[k, :], V[i, :])
-                  sum_terms += (num/den)**(1/(self.m-1))
-                U[k, i] = 1/sum_terms
+                for i in range(self.n_clusters):
+                    sum_terms = 0
+                    num = self.__suitable_squared_dist(X[k, :], V[i, :])
+                    for h in range(self.n_clusters):
+                        den = self.__suitable_squared_dist(X[k, :], V[h, :])
+                        sum_terms += (num/den)**(1/((self.m)-1))
+                    U[k, i] = 1/sum_terms
             
             self.membership_degree = U
 
@@ -220,8 +229,46 @@ class FuzzyClustering:
             # Equation (15)
             sum_terms = 0
             for i in range(self.n_clusters):
-              for k in range(n):
-                sum_terms += U[k, i]**self.m * self.__suitable_squared_dist(X[k, :], 
-                                                                            V[i, :])
+                for k in range(n):
+                    sum_terms += U[k, i]**self.m * self.__suitable_squared_dist(X[k, :], 
+                                                                                V[i, :])
+            last_cost = self.cost
             self.cost = sum_terms
-              
+            print('Cost: ', self.cost)
+            print('Iteration %d finished'%iter_)
+        
+    def info(self):
+        """Present details about the fuzzy clustering
+            
+        Returns
+        cost: float
+            
+        cluster_centers : array, shape [n_clusters, n_features]
+            Coordinates of cluster centers.
+    
+        membership_degree: array, shape [n_samples, n_clusters]
+            Fuzzy partition membership degree for each sample, ui = (ui1, ..., uic)
+            with values between 0 and 1, with sum over clusters equals to one.
+    
+        weights: array, shape [n_clusters, n_features]
+            Vector of weights that parameterize the adaptative distances.
+
+
+        -------
+
+        """
+        
+        print('Optimized cost:', self.cost)
+        print()
+        
+        print('Prototypes (cluster centroids) %s:'%(self.centroids.shape,))
+        print(self.centroids)
+        print()
+        
+        print('Weights %s:'%(self.weights.shape,))
+        print(self.weights)
+        print()
+        
+        print("Membership degree %s:"%(self.membership_degree.shape,))
+        print(self.membership_degree)
+        print()
