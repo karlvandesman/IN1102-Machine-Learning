@@ -1,3 +1,6 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
 import argparse
 import numpy as np
 
@@ -14,6 +17,11 @@ from models.bayesian_gaussian import GaussianBayes
 from models.bayesian_knn import BayesianKNN
 from datasetHelper import Dataset
 
+from sklearn.metrics import adjusted_rand_score
+
+# =============================================================================
+# Exploratory Data Analysis
+# =============================================================================
 def eda():
   
     dataset = Dataset()
@@ -28,6 +36,9 @@ def eda():
     # Split Features and Classes
     dataset.info(dataset.test_dataset)
 
+# =============================================================================
+# Bayesian classification (Gaussian and KNN)
+# =============================================================================
 def bayesian():
     
     dataset = Dataset()
@@ -47,11 +58,11 @@ def bayesian():
     print()
 
     # Transform labels - categoric <->  numeric
-    encoding = LabelEncoder();
-    encoding.classes_ = classes;
+    encoding = LabelEncoder()
+    encoding.classes_ = classes
 
-    y = encoding.transform(y);
-    classes = encoding.transform(classes);
+    y = encoding.transform(y)
+    classes = encoding.transform(classes)
     
     # Parameters
     L = 2		# number of views
@@ -178,34 +189,72 @@ def bayesian():
     	print('We have strong evidence (alpha = %.2f) that kNN classifier '
     	'performed better than the Gaussian classifier'%alpha)
 
-
+# =============================================================================
+#   Fuzzy Clustering
+# =============================================================================
 def fuzzy_clustering():
 
     dataset = Dataset();
  
     X = dataset.train_dataset.values
+    y = dataset.train_dataset.index 
+
+    classes, num_classes = np.unique(np.sort(y), return_counts=True)
     
+    print('Dataset: Image Segmentation.')
+    print('X: (%d, %d), y: (%d, 1)'%(X.shape[0], X.shape[1], 
+          y.shape[0]))
+    print()
+
+    # Transform labels - categoric <->  numeric
+    encoding = LabelEncoder()
+    encoding.classes_ = classes
+
+    y = encoding.transform(y)
+
     scaling_data = StandardScaler()
     scaling_data.fit(X)
     X = scaling_data.transform(X)
     
     X_shape, X_RGB = dataset.split_views(X)
     
-    fuzzy_clustering_shape = FuzzyClustering()
-    fuzzy_clustering_RGB = FuzzyClustering()
+    print('Fitting...')
+    fuzzy_shape = FuzzyClustering()
+    fuzzy_RGB = FuzzyClustering()
 
-    fuzzy_clustering_shape.fit(X_shape)
-    fuzzy_clustering_RGB.fit(X_RGB)
+    fuzzy_shape.fit(X_shape)
+    fuzzy_RGB.fit(X_RGB)
     
-    print("2*sigma_term^2: ", fuzzy_clustering_shape.sigma_term)
-    print("2*sigma_term^2: ", fuzzy_clustering_RGB.sigma_term)
+    print('Parameters calculated:')
+    print("2*sigma_term^2 (shape): ", fuzzy_shape.sigma_term)
+    print("2*sigma_term^2 (RGB): ", fuzzy_RGB.sigma_term)
+    print()
     
-    fuzzy_clustering_shape.predict(X_shape)
-    fuzzy_clustering_RGB.predict(X_RGB)
+    fuzzy_shape.predict(X_shape)
+    print()
+    
+    fuzzy_RGB.predict(X_RGB)
 
-    print("Custo:", fuzzy_clustering_shape.cost)
-    print("membership_degree: \n", fuzzy_clustering_shape.membership_degree)
-
+    # Getting crisp partition    
+    crisp_shape = np.argmax(fuzzy_shape.membership_degree, axis=1)
+    crisp_RGB = np.argmax(fuzzy_RGB.membership_degree, axis=1)
+    
+    # Adjusted Rand index (labels true/labels pred)
+    rand_shape = adjusted_rand_score(y, crisp_shape)
+    rand_RGB = adjusted_rand_score(y, crisp_RGB)
+    
+    rand_views = adjusted_rand_score(crisp_shape, crisp_RGB)
+    
+    print('Presenting adjusted Rand Index:')
+    print('y true and shape: ', rand_shape)
+    print('y true and RGB: ', rand_RGB)
+    print('Between views: ', rand_views)
+    
+    # For the best result, present:
+    # Cost, cluster centroids, weights and membership degree
+    print('For the best rand index result:')   
+    fuzzy_shape.info if(rand_shape>rand_RGB) else fuzzy_RGB.info
+    
 def main(args):
     
     if args.command == 'bayesian':
