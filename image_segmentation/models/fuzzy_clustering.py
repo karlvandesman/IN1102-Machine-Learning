@@ -189,8 +189,9 @@ class FuzzyClustering:
                     sum_num = 0
                     sum_den = 0
                     for k in range(n):
-                        sum_num += U[k, i]**(self.m) * self.__gaussianKernel(X[k, j], V[i, j], self.sigma_term[j]) * X[k, j]
-                        sum_den += U[k, i]**(self.m) * self.__gaussianKernel(X[k, j], V[i, j], self.sigma_term[j])
+                        term = U[k, i]**(self.m) * self.__gaussianKernel(X[k, j], V[i, j], self.sigma_term[j])
+                        sum_den += term
+                        sum_num += term * X[k, j]
                       
                     V[i, j] = sum_num/sum_den
             self.centroids = V
@@ -210,7 +211,7 @@ class FuzzyClustering:
 #                print('For j=',j ,'sum_num:', sum_num)
 #                print('for %d, weights_num_prod=%.12f, weights_den=%.12f' %(j, np.prod(sum_num), sum_den))
 
-                self.weights[j] = (np.prod(sum_num))**(1/p)/(sum_den)
+                self.weights[j] = (np.prod(sum_num**(1/p)))/(sum_den)
             
             # *** Membership degree update ***
             # Equation (32)
