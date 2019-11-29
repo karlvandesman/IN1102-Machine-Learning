@@ -12,7 +12,7 @@ from sklearn.metrics import accuracy_score
 import scipy.stats as st
 from scipy.stats import wilcoxon
 
-from models.fuzzy_clustering import FuzzyClustering
+from models.fuzzy_clustering_opt import FuzzyClustering
 from models.bayesian_gaussian import GaussianBayes
 from models.bayesian_knn import BayesianKNN
 from datasetHelper import Dataset
@@ -194,10 +194,10 @@ def bayesian():
 # =============================================================================
 def fuzzy_clustering():
 
-    dataset = Dataset();
+    dataset = Dataset()
  
-    X = dataset.train_dataset.values
-    y = dataset.train_dataset.index 
+    X = dataset.test_dataset.values
+    y = dataset.test_dataset.index 
 
     classes, num_classes = np.unique(np.sort(y), return_counts=True)
     
@@ -205,7 +205,7 @@ def fuzzy_clustering():
     print('X: (%d, %d), y: (%d, 1)'%(X.shape[0], X.shape[1], 
           y.shape[0]))
     print()
-
+    
     # Transform labels - categoric <->  numeric
     encoding = LabelEncoder()
     encoding.classes_ = classes
@@ -218,10 +218,11 @@ def fuzzy_clustering():
     
     X_shape, X_RGB = dataset.split_views(X)
     
+    seed = 100
+    fuzzy_shape = FuzzyClustering(random_state=seed)
+    fuzzy_RGB = FuzzyClustering(random_state=seed)
+    
     print('Fitting...')
-    fuzzy_shape = FuzzyClustering()
-    fuzzy_RGB = FuzzyClustering()
-
     fuzzy_shape.fit(X_shape)
     fuzzy_RGB.fit(X_RGB)
     
@@ -252,7 +253,7 @@ def fuzzy_clustering():
     
     # For the best result, present:
     # Cost, cluster centroids, weights and membership degree
-    print('For the best rand index result:')   
+    print('For the best rand index result:')
     fuzzy_shape.info if(rand_shape>rand_RGB) else fuzzy_RGB.info
     
 def main(args):
