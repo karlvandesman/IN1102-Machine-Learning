@@ -6,6 +6,7 @@ __email__       = "kvms@cin.ufpe.br"
 
 
 import numpy as np
+from timeit import default_timer as timer
 
 class FuzzyClustering:
     """ Class implementing the Variable-wise kernel fuzzy clustering algorithm 
@@ -175,7 +176,9 @@ class FuzzyClustering:
         last_cost = 200
         
         iter_ = 0
+        time = 0
         while((self.cost > self.epsilon) and (iter_ < self.max_iter) and abs((self.cost-last_cost)/last_cost)>0.001 ):
+            start = timer()
             iter_ += 1
 
             # TODO: Initial implementation was made using for loops, but it can 
@@ -183,7 +186,6 @@ class FuzzyClustering:
         
             # *** Update the cluster centroids ***
             # Equation (27)
-        	
             for i in range(self.n_clusters):
                 for j in range(p):
                     sum_num = 0
@@ -212,7 +214,7 @@ class FuzzyClustering:
 #                print('for %d, weights_num_prod=%.12f, weights_den=%.12f' %(j, np.prod(sum_num), sum_den))
 
                 self.weights[j] = (np.prod(sum_num**(1/p)))/(sum_den)
-            
+
             # *** Membership degree update ***
             # Equation (32)
             for k in range(n):
@@ -235,8 +237,11 @@ class FuzzyClustering:
                                                                                 V[i, :])
             last_cost = self.cost
             self.cost = sum_terms
+            end = timer()
+            time += end-start
+            estimated_left = ((self.max_iter - iter_) * time/iter_)/60
+            print('Iteration %d finished. Time elapsed: %.2fs | Total: %.2fs | Estimated time left: %.2fmin'%(iter_, end-start, time, estimated_left))
             print('Cost: ', self.cost)
-            print('Iteration %d finished'%iter_)
         
     def info(self):
         """Present details about the fuzzy clustering
