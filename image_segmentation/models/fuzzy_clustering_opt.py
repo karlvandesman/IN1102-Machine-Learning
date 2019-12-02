@@ -7,6 +7,7 @@ __email__       = "kvms@cin.ufpe.br"
 
 import numpy as np
 from timeit import default_timer as timer
+from sklearn.metrics import adjusted_rand_score
 
 class FuzzyClustering:
     """ Class implementing the Variable-wise kernel fuzzy clustering algorithm 
@@ -130,16 +131,44 @@ class FuzzyClustering:
 
 
     def __suitable_squared_dist(self, X, V):
-      ''' Calculates the suitable squared distance between the pattern x_k and
-      the cluster centroid v_i. This implementation consider the constraint 
-      that the product of the weights of the variables for each cluster must
-      be equal to one (Equation 22, [1]).
-      '''
+        ''' Calculates the suitable squared distance between the pattern x_k and
+        the cluster centroid v_i. This implementation consider the constraint 
+        that the product of the weights of the variables for each cluster must
+        be equal to one (Equation 22, [1]).
+        '''
+  
+        phi_squared = [self.weights[j] * 2 * (1 - self.__gaussianKernel(X[j], V[j], self.sigma_term[j])) 
+                        for j in range(self.p)]
       
-      phi_squared = [ self.weights[j] * 2 * (1 - self.__gaussianKernel(X[j], V[j], self.sigma_term[j])) 
-                    for j in range(self.p) ]
-      
-      return np.sum(phi_squared)
+        return np.sum(phi_squared)
+
+    def infos(self, y_true, view_name='rgb'):
+        rand_index = self.__rand_index(y_true)
+        
+        infos = [str(self.cost), str(self.centroids), str(self.weights), 
+                 str(self.distribution_clusters), str(rand_index)]
+        
+        file_path = 'results/'+ view_name + str(self.random_state) + '.txt'
+        
+        try:
+            file = open(file_path, "r")
+            last_best_cost = float(file.readline())
+            file.close
+
+        except IOError:
+            # Creates a new file
+            last_best_cost = self.cost+1 #Forces condition to write the file
+            
+        if(self.cost<last_best_cost):
+            file = open(file_path, "w")
+            file.write('\n'.join(infos))
+            print('New results saved.\n')
+            file.close()
+    
+    def __rand_index(self, y_true):
+        self.rand_index = adjusted_rand_score(y_true, self.crisp_cluster)
+        
+        return self.rand_index
 
     def predict(self, X):
         """Predict the class labels for the provided data.
@@ -156,7 +185,6 @@ class FuzzyClustering:
         n, p = X.shape
         
         np.random.seed(self.random_state)
-        print('Start running fuzzy clustering...')
         
         # Randomly initialize the fuzzy membership degree
         U = np.random.rand(n, self.n_clusters)
@@ -172,12 +200,12 @@ class FuzzyClustering:
         self.membership_degree = U
         #print('Initial value for U (membership degree)\n', U)
         
-        self.cost = 100 #just initializing a value
-        last_cost = 200
+        self.cost = 2000 #just initializing a value
+        last_cost = 2100
         
         iter_ = 0
         time = 0
-        while((self.cost > self.epsilon) and (iter_ < self.max_iter) and abs((self.cost-last_cost)/last_cost)>0.001 ):
+        while((iter_ < self.max_iter) and (abs(self.cost-last_cost)>self.epsilon)):
             start = timer()
             iter_ += 1
 
@@ -213,29 +241,16 @@ class FuzzyClustering:
                 self.weights[j] = num_prod/sum_num[j]
 
             # *** Membership degree update ***
-            # Equation (32)
+            # Equation (32)           
+            sum_terms = np.zeros((n, self.n_clusters))
             for k in range(n):
                 for i in range(self.n_clusters):
-                    sum_terms = 0
-                    num = self.__suitable_squared_dist(X[k, :], V[i, :])
-                    for h in range(self.n_clusters):
-                        den = self.__suitable_squared_dist(X[k, :], V[h, :])
-                        sum_terms += (num/den)**(1/((self.m)-1))
-                    U[k, i] = 1/sum_terms
+                    U[k, i] = (self.__suitable_squared_dist(X[k, :], V[i, :]))**(1/(self.m - 1))
+            
+            U = U**-1
+            U = U/np.sum(U, axis=1).reshape(-1, 1)
             
             self.membership_degree = U
-            
-            # Second try
-#            sum_terms = np.zeros((n, self.n_clusters))
-#            for k in range(n):
-#                for h in range(self.n_clusters):
-#                    term = self.__suitable_squared_dist(X[k, :], V[i, :])
-#                    U[k, i] = term**(self.m - 1)
-#            
-#            U = U/np.sum(U, axis=1).reshape(-1, 1)
-#            
-#            print('U sum over n_clusters:', np.sum(U[0], axis=0))
-#            self.membership_degree = U
             
             # First try
 #            squared_dist = np.zeros((self.n_clusters, 1))
@@ -260,43 +275,14 @@ class FuzzyClustering:
             last_cost = self.cost
             self.cost = sum_terms
             end = timer()
-            time += end-start
-            estimated_left = ((self.max_iter - iter_) * time/iter_)/60
-            print('Iteration %d finished. Time elapsed: %.2fs | Total: %.2fs | Estimated time left: %.2fmin'%(iter_, end-start, time, estimated_left))
+            time += (end-start)/60
+            estimated_left = (self.max_iter - iter_) * time/iter_
+            print('Iteration %d finished. Time elapsed: %.2fs, Total: %.2fmin | Estimated time left: %.2fmin'%(iter_, end-start, time, estimated_left))
             print('Cost: ', self.cost)
         
-    def info(self):
-        """Present details about the fuzzy clustering
-            
-        Returns
-        cost: float
-            
-        cluster_centers : array, shape [n_clusters, n_features]
-            Coordinates of cluster centers.
-    
-        membership_degree: array, shape [n_samples, n_clusters]
-            Fuzzy partition membership degree for each sample, ui = (ui1, ..., uic)
-            with values between 0 and 1, with sum over clusters equals to one.
-    
-        weights: array, shape [n_clusters, n_features]
-            Vector of weights that parameterize the adaptative distances.
-
-
-        -------
-
-        """
+        # Getting crisp partition and number of elements per cluster
+        self.crisp_cluster = np.argmax(self.membership_degree, axis=1)
+        _, self.distribution_clusters = np.unique(self.crisp_cluster, 
+                                                  return_counts=True)
         
-        print('Optimized cost:', self.cost)
-        print()
-        
-        print('Prototypes (cluster centroids) %s:'%(self.centroids.shape,))
-        print(self.centroids)
-        print()
-        
-        print('Weights %s:'%(self.weights.shape,))
-        print(self.weights)
-        print()
-        
-        print("Membership degree %s:"%(self.membership_degree.shape,))
-        print(self.membership_degree)
-        print()
+        print('Iterations finished')
