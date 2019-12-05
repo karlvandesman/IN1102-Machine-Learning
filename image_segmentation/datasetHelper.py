@@ -11,10 +11,10 @@ class Dataset:
         
         self.test_dataset = \
         pd.read_csv('./data/segmentation.test', 
-                    skiprows=2).drop(['REGION-PIXEL-COUNT'], axis=1)
+                    skiprows=2).drop(['REGION-PIXEL-COUNT', 'SHORT-LINE-DENSITY-2', 'SHORT-LINE-DENSITY-5'], axis=1)
         
     def split_views(self, dataset_):
-        col_shift = 9 - (19 - self.train_dataset.shape[1])
+        col_shift = 9 - (19 - self.test_dataset.shape[1])
         
         return dataset_[:, 0:col_shift], dataset_[:, col_shift:];
 

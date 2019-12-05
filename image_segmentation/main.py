@@ -55,7 +55,11 @@ def bayesian():
     print('Dataset: Image Segmentation.')
     print('X: (%d, %d), y: (%d, 1)'%(X.shape[0], X.shape[1], 
           y.shape[0]))
-    print()
+
+    #X_shape, X_RGB = dataset.split_views(X)
+    #print('Shape (# of attributes): ', X_shape.shape[1])
+    #print('RGB (# of attributes): ', X_RGB.shape[1])
+    #print()
 
     # Transform labels - categoric <->  numeric
     encoding = LabelEncoder()
@@ -98,7 +102,7 @@ def bayesian():
         
         X_train_shape, X_train_RGB = dataset.split_views(X_train)
         X_test_shape, X_test_RGB = dataset.split_views(X_test)
-        
+
         classes, num_classes = np.unique(np.sort(y_train), return_counts=True)
         PClasses = num_classes/len(y_train)
         
@@ -204,7 +208,6 @@ def fuzzy_clustering():
     print('Dataset: Image Segmentation.')
     print('X: (%d, %d), y: (%d, 1)'%(X.shape[0], X.shape[1], 
           y.shape[0]))
-    print()
     
     # Transform labels - categoric <->  numeric
     encoding = LabelEncoder()
@@ -217,13 +220,15 @@ def fuzzy_clustering():
     X = scaling_data.transform(X)
     
     X_shape, X_RGB = dataset.split_views(X)
-    
+    print('Shape (# of attributes): ', X_shape.shape[1])
+    print('RGB (# of attributes): ', X_RGB.shape[1])
+    print()
+
     seed_rgb = 3
-    seed_shape = 6
+    seed_shape = 100
     fuzzy_shape = FuzzyClustering(random_state=seed_shape)
     fuzzy_RGB = FuzzyClustering(random_state=seed_rgb)
     
-    print('Parameters: ')
     print('Fitting...')
     fuzzy_shape.fit(X_shape)
     fuzzy_RGB.fit(X_RGB)
